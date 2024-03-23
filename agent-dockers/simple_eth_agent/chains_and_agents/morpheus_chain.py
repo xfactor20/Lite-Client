@@ -1,16 +1,21 @@
+import os
+import time
+
 from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOllama
 from langchain.prompts import ChatPromptTemplate
+from langchain.embeddings import CacheBackedEmbeddings
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_community.document_loaders import DirectoryLoader
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
+
 
 from llama_index import Document
 from llama_index.retrievers import VectorIndexRetriever
 
 from models.embedding import build_llamaindex_index
 from rag_assets.contracts_loader import contracts
-from models.embedding import llamaindex_embeddings_factory, langchain_embeddings_factory
+from models.embedding import langchain_embeddings_factory
 from models.seq2seq_models import phase2_prompt_template
 
 TOP_K_METADATA = 2
@@ -29,9 +34,11 @@ def process_nlq(NLQ):
         doc.excluded_embed_metadata_keys = ["abis", "fname"]
         doc.excluded_llm_metadata_keys = ["abis", "fname"]
 
+    # optim: 41s -> 3s (-38s)
     documents_contracts_metadata_index = build_llamaindex_index(
-        embed_model=llamaindex_embeddings_factory(), documents=documents_contracts_metadata
+        documents=documents_contracts_metadata
     )
+
     documents_contracts_retriever = VectorIndexRetriever(
         index=documents_contracts_metadata_index, similarity_top_k=TOP_K_METADATA
     )
@@ -42,13 +49,21 @@ def process_nlq(NLQ):
         for contract in retrieved_contracts_metadata_with_abis
     ]
 
-    abi_in_memory_vectorstore = FAISS.from_texts(retrieved_contracts_metadata_with_abis, embedding=langchain_embeddings_factory())
+    # slow v (orig: 89s)
+    abi_in_memory_vectorstore = FAISS.from_texts(
+        retrieved_contracts_metadata_with_abis, embedding=langchain_embeddings_factory())
+
     abi_retriever = abi_in_memory_vectorstore.as_retriever(search_kwargs={"k": TOP_K_ABIS})
 
     metamask_examples_loader = DirectoryLoader("rag_assets/metamask_eth_examples", glob="*.txt")
     metamask_examples = metamask_examples_loader.load()
-    metamask_examples_in_memory_vectorstore = FAISS.from_documents(metamask_examples, embedding=langchain_embeddings_factory())
-    metamask_examples_retriever = metamask_examples_in_memory_vectorstore.as_retriever(search_kwargs={"k": TOP_K_EXAMPLES})
+
+    # slow v (orig: 11s)
+    metamask_examples_in_memory_vectorstore = FAISS.from_documents(
+        metamask_examples, embedding=langchain_embeddings_factory())
+
+    metamask_examples_retriever = metamask_examples_in_memory_vectorstore.as_retriever(
+        search_kwargs={"k": TOP_K_EXAMPLES})
 
     phase2_model = ChatOllama(model="llama2:7b")
     phase2_prompt = ChatPromptTemplate.from_template(phase2_prompt_template)
@@ -62,4 +77,7 @@ def process_nlq(NLQ):
     )
 
     chain = (setup_and_retrieval | phase2_prompt | phase2_model | StrOutputParser())
-    return chain.invoke(NLQ)
+
+    # slow v (wahrscheinlich nicht optimierbar)
+    val = chain.invoke(NLQ)
+    return val

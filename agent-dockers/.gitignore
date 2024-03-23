@@ -17,3 +17,4 @@ venv/
 ######
 
 simple_eth_agent/simple_eth_agent.egg-info
+simple_eth_agent/cache_dirs/*
