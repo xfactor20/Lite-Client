@@ -1,31 +1,36 @@
-# Use an official Ubuntu base image
-FROM ubuntu:latest
+# Use an official Ubuntu 22.04 base image
+FROM ubuntu:jammy
 
 # Set the working directory in the container
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy the current directory contents into the container at /usr/src/app
-COPY . .
 
 # Install Python and Pip
 RUN apt-get update && \
-    apt-get install -y python3-pip python3-dev && \
+    apt-get install -y curl python3-pip python3-dev && \
     pip3 install --upgrade pip
 
-# Install any needed packages specified in requirements.txt
+
+# Install Ollama, start server, and download llama2 weights
+RUN curl -fsSL https://ollama.com/install.sh | sh && \
+    nohup ollama serve & \
+    while ! curl -s localhost:11434 > /dev/null; do echo 'Waiting for Ollama server...'; sleep 1; done && \
+    ollama pull llama2:7b && \
+    ollama pull llama2
+
+# Open local port for REST API access
+EXPOSE 5555
+
+# Copy the current directory contents into the container at /app
+COPY . .
+# Install Python deps
 RUN pip3 install --no-cache-dir -r requirements.txt
-
-
 # Install local codebase
 RUN pip3 install -e .
 
-EXPOSE 5000
+RUN chmod +x ./entrypoint.sh && chmod +x app.py
 
-# TODO Ollama install within container
-# TODO preload model weights for Llama2
+ENTRYPOINT ["./entrypoint.sh"]
 
-## Define environment variable
-#ENV NAME World
 
-# Run app.py when the container launches
-CMD ["python3", "main.py"]
+# docker run -d -p 5555:5555 --memory=1000G morpheus/simple_eth_agent

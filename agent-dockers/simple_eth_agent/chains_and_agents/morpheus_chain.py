@@ -4,7 +4,6 @@ import time
 from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOllama
 from langchain.prompts import ChatPromptTemplate
-from langchain.embeddings import CacheBackedEmbeddings
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
@@ -13,9 +12,8 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from llama_index import Document
 from llama_index.retrievers import VectorIndexRetriever
 
-from models.embedding import build_llamaindex_index
+from models.embedding import build_llamaindex_index, langchain_embeddings_factory, langchain_cached_embeddings_factory
 from rag_assets.contracts_loader import contracts
-from models.embedding import langchain_embeddings_factory
 from models.seq2seq_models import phase2_prompt_template
 
 TOP_K_METADATA = 2
@@ -60,7 +58,7 @@ def process_nlq(NLQ):
 
     # slow v (orig: 11s)
     metamask_examples_in_memory_vectorstore = FAISS.from_documents(
-        metamask_examples, embedding=langchain_embeddings_factory())
+        metamask_examples, langchain_embeddings_factory())
 
     metamask_examples_retriever = metamask_examples_in_memory_vectorstore.as_retriever(
         search_kwargs={"k": TOP_K_EXAMPLES})
