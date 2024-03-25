@@ -7,6 +7,8 @@ from langchain.embeddings import OllamaEmbeddings as LangChainOllamaEmbeddings
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.storage import LocalFileStore
 
+from config import OLLAMA_BASE_URL
+
 cache_dir_parent_path = "./cache_dirs"
 
 llama_index_contracts_metadata_cache_dir = os.path.join(cache_dir_parent_path,
@@ -17,7 +19,7 @@ langchain_store = LocalFileStore(langchain_cache_dir)
 
 
 def langchain_embeddings_factory():
-    return LangChainOllamaEmbeddings()  # uses llama2
+    return LangChainOllamaEmbeddings(base_url=OLLAMA_BASE_URL)  # uses llama2
 
 
 def langchain_cached_embeddings_factory():
@@ -31,8 +33,10 @@ def langchain_cached_embeddings_factory():
 
 
 def build_llamaindex_index(documents):
-    service_context = ServiceContext.from_defaults(embed_model=LlamaIndexOllamaEmbeddings(model_name="llama2"),
-                                                   llm=None, chunk_size=4096)
+    service_context = ServiceContext.from_defaults(
+        embed_model=LlamaIndexOllamaEmbeddings(model_name="llama2", base_url=OLLAMA_BASE_URL),
+        llm=None, chunk_size=4096
+    )
 
     if os.path.isdir(llama_index_contracts_metadata_cache_dir):
         # rebuild storage context

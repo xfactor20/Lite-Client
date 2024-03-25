@@ -11,13 +11,6 @@ RUN apt-get update && \
     pip3 install --upgrade pip
 
 
-# Install Ollama, start server, and download llama2 weights
-RUN curl -fsSL https://ollama.com/install.sh | sh && \
-    nohup ollama serve & \
-    while ! curl -s localhost:11434 > /dev/null; do echo 'Waiting for Ollama server...'; sleep 1; done && \
-    ollama pull llama2:7b && \
-    ollama pull llama2
-
 # Open local port for REST API access
 EXPOSE 5555
 
@@ -32,5 +25,4 @@ RUN chmod +x ./entrypoint.sh && chmod +x app.py
 
 ENTRYPOINT ["./entrypoint.sh"]
 
-
-# docker run -d -p 5555:5555 --memory=1000G morpheus/simple_eth_agent
+# docker run -d -p 5555:5555 morpheus/simple_eth_agent
